@@ -1,9 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-test('exchange moves money between currency balances in the real browser workflow', async ({ page }) => {
+test('backdated exchange updates balances and deletion reverses it in the real browser workflow', async ({ page }) => {
   test.skip(test.info().project.name !== 'mobile-390', 'One mobile viewport is enough for ledger movement evidence.');
 
-  const today = new Date().toLocaleDateString('en-CA');
+  const todayDate = new Date();
+  const today = todayDate.toLocaleDateString('en-CA');
+  const previousDate = new Date(todayDate);
+  previousDate.setDate(previousDate.getDate() - 1);
+  const yesterday = previousDate.toLocaleDateString('en-CA');
 
   await page.route('**/api/exchange-rates/currencies', async (route) => {
     await route.fulfill({
@@ -73,6 +77,9 @@ test('exchange moves money between currency balances in the real browser workflo
   await destination.getByLabel('Method').selectOption('cash');
   await source.getByLabel('Amount to move').fill('10');
 
+  await page.getByText('Date and note', { exact: true }).click();
+  await page.getByLabel('Date').fill(yesterday);
+
   await expect(destination.getByLabel('Destination amount')).toHaveValue('400.00');
   await page.getByRole('button', { name: 'Exchange USD to TRY' }).click();
   await expect(page.getByText('Exchange recorded.', { exact: true })).toBeVisible();
@@ -84,4 +91,14 @@ test('exchange moves money between currency balances in the real browser workflo
   const tryBalance = page.locator('[data-balance-currency="TRY"]');
   await expect(usd.locator('[data-balance-method="card"]')).toContainText('90');
   await expect(tryBalance.locator('[data-balance-method="cash"]')).toContainText(/1[,.]?400/);
+
+  await page.goto('/app/conversions');
+  await expect(page.getByText(yesterday, { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete move', exact: true }).click();
+  await expect(page.getByText('Exchange deleted.', { exact: true })).toBeVisible();
+
+  await page.goto('/app/balances');
+  await expect(usd.locator('[data-balance-method="card"]')).toContainText('100');
+  await expect(tryBalance.locator('[data-balance-method="cash"]')).toContainText(/1[,.]?000/);
 });
