@@ -125,7 +125,7 @@ describe('rebuildDerivedBalances', () => {
     expect((await database.balances.get(getBalanceId('GBP', 'cash')))?.amount).toBe(380);
   });
 
-  it('does not replay historical records that fall before an absolute checkpoint', async () => {
+  it('replays backdated records created after an opening checkpoint', async () => {
     await database.balanceCheckpoints.put(checkpoint());
     await database.transactions.put(
       transaction({
@@ -138,7 +138,71 @@ describe('rebuildDerivedBalances', () => {
 
     await rebuildDerivedBalances(database);
 
+    expect((await database.balances.get(getBalanceId('TRY', 'cash')))?.amount).toBe(80);
+  });
+
+  it('does not replay records that were already present when an opening checkpoint was created', async () => {
+    await database.balanceCheckpoints.put(checkpoint());
+    await database.transactions.put(
+      transaction({
+        date: '2026-04-30',
+        occurredAt: undefined,
+        createdAt: '2026-04-30T12:00:00.000Z',
+        updatedAt: '2026-04-30T12:00:00.000Z',
+      })
+    );
+
+    await rebuildDerivedBalances(database);
+
     expect((await database.balances.get(getBalanceId('TRY', 'cash')))?.amount).toBe(100);
+  });
+
+  it('does not replay backdated records created after an absolute reconciliation', async () => {
+    await database.balanceCheckpoints.put(
+      checkpoint({
+        id: 'reconciliation-2026-05-TRY-cash',
+        kind: 'reconciliation',
+      })
+    );
+    await database.transactions.put(
+      transaction({
+        date: '2026-04-30',
+        occurredAt: undefined,
+        createdAt: '2026-05-02T12:00:00.000Z',
+        updatedAt: '2026-05-02T12:00:00.000Z',
+      })
+    );
+
+    await rebuildDerivedBalances(database);
+
+    expect((await database.balances.get(getBalanceId('TRY', 'cash')))?.amount).toBe(100);
+  });
+
+  it('replays a backdated conversion created after opening checkpoints on both balance buckets', async () => {
+    await database.balanceCheckpoints.bulkPut([
+      checkpoint(),
+      checkpoint({
+        id: 'opening-USD-card',
+        balanceId: getBalanceId('USD', 'card'),
+        currency: 'USD',
+        method: 'card',
+        observedAmount: 5,
+        deltaAmount: 5,
+      }),
+    ]);
+    await database.conversions.put(
+      conversion({
+        date: '2026-04-30',
+        occurredAt: undefined,
+        createdAt: '2026-05-02T12:00:00.000Z',
+        updatedAt: '2026-05-02T12:00:00.000Z',
+      })
+    );
+
+    await rebuildDerivedBalances(database);
+
+    expect((await database.balances.get(getBalanceId('TRY', 'cash')))?.amount).toBe(90);
+    expect((await database.balances.get(getBalanceId('USD', 'card')))?.amount).toBe(6);
   });
 
   it('treats a later reconciliation as the new absolute base', async () => {
