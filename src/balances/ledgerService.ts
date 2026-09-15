@@ -32,8 +32,13 @@ type LedgerActivity = {
 /**
  * Rebuilds the local balance cache from authoritative ledger records.
  *
- * For each balance bucket, the latest absolute checkpoint is the base. Only
- * transactions/conversions that happened after that checkpoint are applied.
+ * For each balance bucket, the latest checkpoint is the base. Opening
+ * checkpoints are baseline snapshots of the ledger state that existed when
+ * they were created, so records created later are replayed even when their
+ * business date is backdated before the opening. Reconciliation checkpoints
+ * remain absolute observations: only activity that happened after them is
+ * applied.
+ *
  * Balance buckets are derived from the ledger itself rather than a static
  * currency catalog, so newly activated currencies remain first-class across
  * restore, sync, and ordinary local mutations.
@@ -155,12 +160,20 @@ function isActivityAfterCheckpoint(
 ): boolean {
   if (!checkpoint) return true;
 
+  if (checkpoint.kind === 'opening') {
+    // An opening amount is a baseline snapshot of the ledger state that existed
+    // when it was created. Records already present at that point are baked into
+    // observedAmount. Records created later were not, so they must affect the
+    // derived balance even when their business date is backdated.
+    return activity.createdAt > checkpoint.effectiveAt;
+  }
+
   if (activity.occurredAt) {
     return activity.occurredAt > checkpoint.effectiveAt;
   }
 
-  // If the activity already existed when the absolute observation was made,
-  // its effect was already reflected in the balance being reconciled/migrated.
+  // If the activity already existed when the absolute reconciliation was made,
+  // its effect was already reflected in the observed balance.
   if (activity.createdAt <= checkpoint.effectiveAt) return false;
 
   if (activity.date > checkpoint.date) return true;
