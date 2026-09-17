@@ -40,6 +40,14 @@ test('settings navigation and local preferences remain usable offline on mobile'
   await expect(general).toBeVisible();
   await expect(settingsNavigation).toBeHidden();
 
+  await page.getByRole('link', { name: 'All settings', exact: true }).click();
+  await expect(settingsNavigation).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/settings$/);
+
+  await settingsNavigation.getByRole('link', { name: /General/ }).click();
+  await expect(general).toBeVisible();
+  await expect(settingsNavigation).toBeHidden();
+
   const method = general.getByRole('combobox', { name: 'Default payment method', exact: true });
   await expect(method).toHaveValue('card');
   await method.selectOption('cash');
