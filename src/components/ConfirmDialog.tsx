@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 
 interface ConfirmDialogProps {
@@ -41,16 +42,22 @@ export function ConfirmDialog({
     if (!open) return;
 
     const previousActiveElement = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     cancelRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !cancelDisabled) {
+      if (event.key === 'Escape') {
         event.preventDefault();
-        onCancel();
+        event.stopPropagation();
+        if (!cancelDisabled) onCancel();
         return;
       }
       if (event.key !== 'Tab') return;
 
+      // A confirmation can sit above another modal/sheet. Keep keyboard handling
+      // inside the top-most dialog instead of letting the parent focus trap run.
+      event.stopPropagation();
       const focusableElements = panelRef.current?.querySelectorAll<HTMLElement>(
         'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
       );
@@ -67,18 +74,19 @@ export function ConfirmDialog({
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
+      document.body.style.overflow = previousOverflow;
       previousActiveElement?.focus();
     };
   }, [cancelDisabled, onCancel, open]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--overlay)] p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget && !cancelDisabled) onCancel();
       }}
@@ -108,7 +116,8 @@ export function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
