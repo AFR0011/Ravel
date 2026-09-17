@@ -421,6 +421,7 @@ export default function SettingsWorkspace() {
           {activeSection ? (
             <Link
               href="/app/settings"
+              onClick={() => setActiveSection(null)}
               className={cn(
                 'mb-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-1 text-sm font-semibold text-accent md:hidden',
                 focusVisibleRing
