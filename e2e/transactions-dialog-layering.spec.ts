@@ -10,13 +10,18 @@ async function completeFreshOnboarding(page: Page) {
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('heading', { name: 'You’re ready.' })).toBeVisible();
   await page.getByRole('button', { name: 'Open Ravel' }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
 }
 
 test('delete confirmation stays above the transaction editor and owns Escape', async ({ page }) => {
   await page.goto('/app');
   await completeFreshOnboarding(page);
 
-  await page.goto('/app/add?mode=quick&type=expense&amount=10&title=Layering%20test&method=cash');
+  await page.goto('/app/add');
+  await expect(page.getByRole('heading', { name: 'Add transaction', exact: true })).toBeVisible();
+  await page.getByLabel('Amount', { exact: true }).fill('10');
+  await page.getByLabel('What was it?').fill('Layering test');
+  await page.getByRole('button', { name: 'Cash', exact: true }).click();
   await page.getByRole('button', { name: 'Save expense', exact: true }).click();
   await expect(page.getByText('Transaction saved.', { exact: true })).toBeVisible();
 
