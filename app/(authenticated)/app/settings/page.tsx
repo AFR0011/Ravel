@@ -1,5 +1,5 @@
-import SettingsWorkspace from '@/components/SettingsWorkspace';
+import SettingsPageClient from '@/components/SettingsPageClient';
 
 export default function SettingsPage() {
-  return <SettingsWorkspace />;
+  return <SettingsPageClient />;
 }
