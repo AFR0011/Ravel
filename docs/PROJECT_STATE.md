@@ -1,6 +1,6 @@
 # Ravel Project State
 
-Last updated: 2026-09-11
+Last updated: 2026-09-17
 
 ## Current status
 
@@ -27,6 +27,12 @@ Ravel is a mobile-first, local-first personal ledger. IndexedDB/Dexie is the nor
 Optional Supabase Auth and sync can bind a device ledger to an account. Canonical local mutations commit with durable sync intent, remote delivery retries through the outbox, and account-wide replacement is generation-aware. Empty-cloud claim plus initial seed is atomic through the server-authorized `claim_empty_taptrack_ledger` RPC. The historical RPC name is intentionally retained as a compatibility contract.
 
 Groq Smart Categories are optional and non-blocking. Telegram and capture-token entry are optional server-mediated integrations. Historical exchange-rate and report valuation remain explicit rather than silently inventing rates.
+
+## Post-release correctness fix in this branch
+
+The Quick Capture server balance calculation is being restored to the same opening-checkpoint semantics as the canonical local ledger. Opening checkpoints are baseline snapshots: activity created after the checkpoint must be replayed even when its business date is backdated before or onto the opening date. Ambiguous before/after ordering remains limited to reconciliation checkpoints, where an exact same-day historical ordering can genuinely be unknown.
+
+The fix is intentionally limited to the existing deployed `taptrack_calculated_balance` compatibility RPC plus regression coverage for backdated transactions around opening checkpoints. Existing finance records are not rewritten.
 
 ## Rebrand compatibility boundary
 
